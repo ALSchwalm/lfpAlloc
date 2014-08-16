@@ -79,7 +79,7 @@ namespace lfPoolAlloc {
     private:
         union Cell_{
             std::atomic<uint16_t> next_;
-            T val;
+            uint8_t val[sizeof(T)];
         };
 
         const uint16_t cellsPerAllocation_;
