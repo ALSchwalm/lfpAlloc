@@ -9,3 +9,6 @@ tests.out: $(TEST_OBJ)
 
 tests/%.o: tests/%.cpp
 	g++ $(CC_FLAGS) -c -o $@ $< -I. -std=c++11
+
+clean:
+	rm tests.out $(TEST_OBJ)

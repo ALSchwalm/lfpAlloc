@@ -2,38 +2,62 @@
 #include <lfPoolAlloc/PoolChunk.hpp>
 #include <gtest/gtest.h>
 
+TEST(ChunkTest, PossibleAllocations) {
+    lfpAlloc::PoolChunk<int, 1, 100> intChunk;
+    EXPECT_EQ(intChunk.possibleAllocations(), 100);
+
+    lfpAlloc::PoolChunk<float, 2, 50> floatChunk;
+    EXPECT_EQ(floatChunk.possibleAllocations(), 25);
+}
+
 TEST(ChunkTest, Allocate) {
-    lfPoolAlloc::LFPoolChunck<int> intChunk(1, 100);
+    lfpAlloc::PoolChunk<int, 1, 100> intChunk;
     int* intPtr1 = static_cast<int*>(intChunk.allocate());
     int* intPtr2 = static_cast<int*>(intChunk.allocate());
 
     EXPECT_NE(intPtr1, intPtr2);
 
-    lfPoolAlloc::LFPoolChunck<std::string> stringChunk(1, 10);
+    lfpAlloc::PoolChunk<std::string, 1, 10> stringChunk;
     std::string* strPtr1 = static_cast<std::string*>(stringChunk.allocate());
     strPtr1 = new (strPtr1) std::string("My Test String");
     EXPECT_EQ(*strPtr1, "My Test String");
 }
 
+TEST(ChunkTest, CellsPerAllocation) {
+    lfpAlloc::PoolChunk<int, 2, 100> intChunk;
+    for (std::size_t s=0; s < intChunk.possibleAllocations(); ++s) {
+        EXPECT_NO_THROW(intChunk.allocate());
+    }
+    EXPECT_TRUE(intChunk.isFull());
+    EXPECT_THROW(intChunk.allocate(), std::bad_alloc);
+
+    lfpAlloc::PoolChunk<int, 4, 100> intChunk2;
+    for (std::size_t s=0; s < intChunk2.possibleAllocations(); ++s) {
+        EXPECT_NO_THROW(intChunk2.allocate());
+    }
+    EXPECT_TRUE(intChunk2.isFull());
+    EXPECT_THROW(intChunk2.allocate(), std::bad_alloc);
+}
+
 TEST(ChunkTest, AvailableAllocations) {
-    lfPoolAlloc::LFPoolChunck<int> chunk(1, 100);
+    lfpAlloc::PoolChunk<int, 1, 100> chunk;
     for (std::size_t s=0; s < 100; ++s) {
         EXPECT_NO_THROW(chunk.allocate());
     }
     EXPECT_THROW(chunk.allocate(), std::bad_alloc);
 
-    lfPoolAlloc::LFPoolChunck<int> smallChunk(1, 10);
-    for (std::size_t s=0; s < 10; ++s) {
+    lfpAlloc::PoolChunk<int, 2, 10> smallChunk;
+    for (std::size_t s=0; s < 5; ++s) {
         EXPECT_NO_THROW(smallChunk.allocate());
     }
     EXPECT_THROW(smallChunk.allocate(), std::bad_alloc);
 }
 
 TEST(ChunkTest, Contains) {
-    lfPoolAlloc::LFPoolChunck<int> chunk1(1, 10);
+    lfpAlloc::PoolChunk<int, 1, 10> chunk1;
     int* ptr1 = static_cast<int*>(chunk1.allocate());
 
-    lfPoolAlloc::LFPoolChunck<int> chunk2(1, 10);
+    lfpAlloc::PoolChunk<int, 1, 10> chunk2;
     int* ptr2 = static_cast<int*>(chunk2.allocate());
 
     EXPECT_TRUE(chunk1.contains(ptr1));
