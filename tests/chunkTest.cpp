@@ -1,5 +1,5 @@
 
-#include <lfPoolAlloc/PoolChunk.hpp>
+#include <lfpAlloc/PoolChunk.hpp>
 #include <gtest/gtest.h>
 
 TEST(ChunkTest, PossibleAllocations) {
@@ -26,31 +26,29 @@ TEST(ChunkTest, Allocate) {
 TEST(ChunkTest, CellsPerAllocation) {
     lfpAlloc::PoolChunk<int, 2, 100> intChunk;
     for (std::size_t s=0; s < intChunk.possibleAllocations(); ++s) {
-        EXPECT_NO_THROW(intChunk.allocate());
+        EXPECT_NE(intChunk.allocate(), nullptr);
     }
-    EXPECT_TRUE(intChunk.isFull());
-    EXPECT_THROW(intChunk.allocate(), std::bad_alloc);
+    EXPECT_EQ(intChunk.allocate(), nullptr);
 
     lfpAlloc::PoolChunk<int, 4, 100> intChunk2;
     for (std::size_t s=0; s < intChunk2.possibleAllocations(); ++s) {
-        EXPECT_NO_THROW(intChunk2.allocate());
+        EXPECT_NE(intChunk2.allocate(), nullptr);
     }
-    EXPECT_TRUE(intChunk2.isFull());
-    EXPECT_THROW(intChunk2.allocate(), std::bad_alloc);
+    EXPECT_EQ(intChunk2.allocate(), nullptr);
 }
 
 TEST(ChunkTest, AvailableAllocations) {
     lfpAlloc::PoolChunk<int, 1, 100> chunk;
     for (std::size_t s=0; s < 100; ++s) {
-        EXPECT_NO_THROW(chunk.allocate());
+        EXPECT_NE(chunk.allocate(), nullptr);
     }
-    EXPECT_THROW(chunk.allocate(), std::bad_alloc);
+    EXPECT_EQ(chunk.allocate(), nullptr);
 
     lfpAlloc::PoolChunk<int, 2, 10> smallChunk;
     for (std::size_t s=0; s < 5; ++s) {
-        EXPECT_NO_THROW(smallChunk.allocate());
+        EXPECT_NE(smallChunk.allocate(), nullptr);
     }
-    EXPECT_THROW(smallChunk.allocate(), std::bad_alloc);
+    EXPECT_EQ(smallChunk.allocate(), nullptr);
 }
 
 TEST(ChunkTest, Contains) {

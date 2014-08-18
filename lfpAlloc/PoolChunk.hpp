@@ -13,37 +13,41 @@ static_assert(ATOMIC_POINTER_LOCK_FREE==2,
 
 namespace lfpAlloc {
 
-    template<typename T, std::size_t CellsPerAllocation, std::size_t NumCells>
+    template<typename T, uint16_t CellsPerAllocation, uint16_t NumCells>
     class PoolChunk{
     public:
+        static constexpr auto MAX_CELLS = std::numeric_limits<uint16_t>::max();
 
         static_assert(NumCells % CellsPerAllocation == 0,
                       "NumCells must be a multiple of CellsPerAllocation.");
 
         PoolChunk() :
-            allocatedCells_(0),
             head_(&memBlock_[0]){
 
             for (uint16_t s=0; s < NumCells/CellsPerAllocation; ++s) {
-                memBlock_[s*CellsPerAllocation].next_ =
-                    (s+1)*CellsPerAllocation;
+                memBlock_[s*CellsPerAllocation].next_
+                    .store((s+1)*CellsPerAllocation, std::memory_order_relaxed);
             }
             auto& last = memBlock_[NumCells-CellsPerAllocation];
-            last.next_.store(std::numeric_limits<uint16_t>::max());
+            last.next_.store(MAX_CELLS, std::memory_order_relaxed);
         }
 
         T* allocate(){
             Cell_* currentHead;
+            Cell_* nextPointer;
             uint16_t currentNext;
             do {
-                if (isFull()) {
-                    throw std::bad_alloc();
-                }
-
                 currentHead = head_.load();
+                if (!currentHead) {
+                    return nullptr;
+                }
                 currentNext = currentHead->next_.load();
-            } while (!head_.compare_exchange_strong(currentHead, &memBlock_[currentNext]));
-            allocatedCells_+=CellsPerAllocation;
+                if (currentNext == MAX_CELLS) {
+                    nextPointer = nullptr;
+                } else {
+                    nextPointer = &memBlock_[currentNext];
+                }
+            } while (!head_.compare_exchange_strong(currentHead, nextPointer));
             return reinterpret_cast<T*>(currentHead);
         }
 
@@ -51,26 +55,14 @@ namespace lfpAlloc {
             auto newHead = reinterpret_cast<Cell_*>(p);
             Cell_* currentHead;
             do {
-                if (isEmpty()) {
-                    throw std::bad_alloc();
-                }
                 currentHead = head_.load();
                 auto headIndex = std::distance(&memBlock_[0], newHead);
-                newHead->next_.store(headIndex);
+                newHead->next_ = headIndex;
             } while (!head_.compare_exchange_strong(currentHead, newHead));
-            allocatedCells_-=CellsPerAllocation;
         }
 
         bool contains(void* p) const {
             return p >= memBlock_ && p < memBlock_+NumCells;
-        }
-
-        bool isFull() const {
-            return allocatedCells_.load() == NumCells;
-        }
-
-        bool isEmpty() const {
-            return !allocatedCells_.load();
         }
 
         constexpr uint16_t possibleAllocations() const {
@@ -84,7 +76,6 @@ namespace lfpAlloc {
         };
 
         Cell_ memBlock_[NumCells];
-        std::atomic<uint16_t> allocatedCells_;
         std::atomic<Cell_*> head_;
     };
 }
