@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <atomic>
 #include <lfpAlloc/PoolChunk.hpp>
-#include <iostream> //TODO remove this
 
 namespace lfpAlloc {
 
@@ -25,7 +24,7 @@ namespace lfpAlloc {
 
                 // Try to find a chunk with free cells
                 while(next != recentHead) {
-                    if (val = next->chunk_.allocate()) {
+                    if ((val = next->chunk_.allocate())) {
                         return val;
                     }
                     next = next->next_.load();
