@@ -52,7 +52,16 @@ namespace lfpAlloc {
         }
 
         void deallocate(void* p){
+            Node_* recentHead = head_.load();
+            Node_* next = recentHead->next_.load();
 
+            while(next != recentHead) {
+                if (next->chunk_.contains(p)) {
+                    next->chunk_.deallocate(p);
+                    return;
+                }
+                next = next->next_.load();
+            }
         }
 
     private:
