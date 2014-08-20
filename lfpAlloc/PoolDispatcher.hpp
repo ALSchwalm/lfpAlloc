@@ -26,7 +26,7 @@ namespace lfpAlloc {
         };
     }
 
-    template<typename T, std::size_t MaxChunkSize=8>
+    template<typename T, std::size_t MaxChunkSize>
     class PoolDispatcher {
     public:
         T* allocate(std::size_t size) {

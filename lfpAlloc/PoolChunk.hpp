@@ -56,7 +56,7 @@ namespace lfpAlloc {
             Cell_* currentHead;
             do {
                 currentHead = head_.load();
-                auto headIndex = std::distance(&memBlock_[0], newHead);
+                auto headIndex = std::distance(&memBlock_[0], currentHead);
                 newHead->next_ = headIndex;
             } while (!head_.compare_exchange_strong(currentHead, newHead));
         }

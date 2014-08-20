@@ -14,6 +14,17 @@ namespace lfpAlloc {
             head_.load()->next_.store(head_);
         }
 
+        ~Pool() {
+            Node_* head = head_.load();
+            Node_* next = head->next_.load();
+
+            while(next != head) {
+                auto temp = next;
+                next = next->next_.load();
+                delete temp;
+            }
+        }
+
         T* allocate(){
             Node_* recentHead = head_.load();
             T* val = nullptr;
