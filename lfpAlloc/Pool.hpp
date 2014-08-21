@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <atomic>
 #include <memory>
+#include <iostream>
+#include <cassert>
 
 namespace lfpAlloc {
 
@@ -26,21 +28,38 @@ namespace lfpAlloc {
         }
 
         T* allocate(){
+        start:
             Cell_* currentHead;
-            Cell_* nextPointer;
+            Cell_* currentNext;
+
+            Node_* currentHandle;
+            Node_* newNode;
+
+            // Ran out of cells to allocate
+            if (!head_.load()) {
+
+                // Make a new node
+                newNode = new Node_;
+
+                // Point the current Head's next to the head of the new node
+                do {
+                    currentHead = head_.load();
+                    newNode->memBlock_[NumCells-CellsPerAllocation].next_ = currentHead;
+                } while(!head_.compare_exchange_strong(currentHead, &newNode->memBlock_[0]));
+
+                // Add the node to the chain
+                do {
+                    currentHandle = handle_.load();
+                    newNode->next_ = currentHandle;
+                } while(!handle_.compare_exchange_strong(currentHandle, newNode));
+                assert(head_.load());
+            }
+
+            // Allocate by making head = head.next
             do {
                 currentHead = head_.load();
-                nextPointer = currentHead->next_.load();
-                if (!nextPointer) {
-                    auto newNode = new Node_;
-                    Node_* currentHandle;
-                    do {
-                        currentHandle = handle_.load();
-                        newNode->next_ = currentHandle;
-                    } while (!handle_.compare_exchange_strong(currentHandle, newNode));
-                    nextPointer = &newNode->memBlock_[0];
-                }
-            } while (!head_.compare_exchange_strong(currentHead, nextPointer));
+                currentNext = currentHead->next_.load();
+            } while (!head_.compare_exchange_strong(currentHead, currentNext));
             return reinterpret_cast<T*>(currentHead);
         }
 
