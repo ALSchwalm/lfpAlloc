@@ -13,7 +13,7 @@ namespace lfpAlloc {
         template<std::size_t Val>
         struct Power<0, Val> {
             enum {
-                value = Val
+                value = Val/2
             };
         };
 
