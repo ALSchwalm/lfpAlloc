@@ -28,14 +28,13 @@ namespace lfpAlloc {
         }
 
         T* allocate(){
-        start:
             Cell_* currentHead;
             Cell_* currentNext;
 
             Node_* currentHandle;
             Node_* newNode;
 
-            // Ran out of cells to allocate
+            // Out of cells to allocate
             if (!head_.load()) {
 
                 // Make a new node
@@ -45,14 +44,17 @@ namespace lfpAlloc {
                 do {
                     currentHead = head_.load();
                     newNode->memBlock_[NumCells-CellsPerAllocation].next_ = currentHead;
-                } while(!head_.compare_exchange_strong(currentHead, &newNode->memBlock_[0]));
+
+                    // The first block is reserved for the current request
+                } while(!head_.compare_exchange_strong(currentHead, &newNode->memBlock_[1]));
 
                 // Add the node to the chain
                 do {
                     currentHandle = handle_.load();
                     newNode->next_ = currentHandle;
                 } while(!handle_.compare_exchange_strong(currentHandle, newNode));
-                assert(head_.load());
+
+                return reinterpret_cast<T*>(&newNode->memBlock_[0]);
             }
 
             // Allocate by making head = head.next
