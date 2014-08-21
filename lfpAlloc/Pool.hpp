@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <atomic>
 #include <memory>
-#include <lfpAlloc/PoolChunk.hpp>
 
 namespace lfpAlloc {
 
@@ -16,6 +15,15 @@ namespace lfpAlloc {
 
         Pool() : handle_(new Node_),
                  head_(&handle_.load()->memBlock_[0]){}
+
+        ~Pool() {
+            Node_* node = handle_.load();
+            while(node) {
+                auto temp = node;
+                node = node->next_;
+                delete temp;
+            }
+        }
 
         T* allocate(){
             Cell_* currentHead;
@@ -62,7 +70,7 @@ namespace lfpAlloc {
                 last.next_.store(nullptr, std::memory_order_relaxed);
             }
             Cell_ memBlock_[NumCells];
-            Node_* next_;
+            Node_* next_ = nullptr;
         };
 
         std::atomic<Node_*> handle_;
