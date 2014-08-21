@@ -3,84 +3,70 @@
 
 #include <cstdint>
 #include <atomic>
+#include <memory>
 #include <lfpAlloc/PoolChunk.hpp>
 
 namespace lfpAlloc {
 
-    template<typename T, uint16_t CellsPerAllocation, uint16_t NumCells>
+    template<typename T, uint16_t CellsPerAllocation, std::size_t NumCells>
     class Pool {
     public:
-        Pool() : head_(new Node_){
-            head_.load()->next_.store(head_);
-        }
+        static_assert(NumCells % CellsPerAllocation == 0,
+                      "NumCells must be a multiple of CellsPerAllocation.");
 
-        ~Pool() {
-            Node_* head = head_.load();
-            Node_* next = head->next_.load();
-
-            while(next != head) {
-                auto temp = next;
-                next = next->next_.load();
-                delete temp;
-            }
-        }
+        Pool() : handle_(new Node_),
+                 head_(&handle_.load()->memBlock_[0]){}
 
         T* allocate(){
-            Node_* recentHead = head_.load();
-            T* val = nullptr;
-
-            // Try to allocate from the active (head) chunk
-            if (!(val = recentHead->chunk_.allocate())) {
-                Node_* next = recentHead->next_.load();
-
-                // Try to find a chunk with free cells
-                while(next != recentHead) {
-                    if ((val = next->chunk_.allocate())) {
-                        return val;
-                    }
-                    next = next->next_.load();
+            Cell_* currentHead;
+            Cell_* nextPointer;
+            do {
+                currentHead = head_.load();
+                nextPointer = currentHead->next_.load();
+                if (!nextPointer) {
+                    auto newNode = new Node_;
+                    Node_* currentHandle;
+                    do {
+                        currentHandle = handle_.load();
+                        newNode->next_ = currentHandle;
+                    } while (!handle_.compare_exchange_strong(currentHandle, newNode));
+                    nextPointer = &newNode->memBlock_[0];
                 }
-
-                // Add a new chunk to the ring
-                Node_* newNode = new Node_;
-
-                // Allocate before inserting the chunk into the ring
-                val = newNode->chunk_.allocate();
-
-                Node_* currentNext;
-                do {
-                    currentNext = head_.load()->next_.load();
-                    newNode->next_.store(recentHead->next_);
-                } while (!head_.load()->next_.compare_exchange_strong(currentNext, newNode));
-
-                // Point the head at the new node in the ring
-                head_.store(newNode);
-                return val;
-            } else {
-                return val;
-            }
+            } while (!head_.compare_exchange_strong(currentHead, nextPointer));
+            return reinterpret_cast<T*>(currentHead);
         }
 
-        void deallocate(void* p){
-            Node_* recentHead = head_.load();
-            Node_* next = recentHead->next_.load();
-
-            while(next != recentHead) {
-                if (next->chunk_.contains(p)) {
-                    next->chunk_.deallocate(p);
-                    return;
-                }
-                next = next->next_.load();
-            }
+        void deallocate(void* p) {
+            auto newHead = reinterpret_cast<Cell_*>(p);
+            Cell_* currentHead;
+            do {
+                currentHead = head_.load();
+                newHead->next_ = currentHead;
+            } while (!head_.compare_exchange_strong(currentHead, newHead));
         }
 
     private:
-        struct Node_ {
-            PoolChunk<T, CellsPerAllocation, NumCells> chunk_;
-            std::atomic<Node_*> next_;
+        union Cell_{
+            std::atomic<Cell_*> next_;
+            uint8_t val[sizeof(T)];
         };
 
-        std::atomic<Node_*> head_;
+        struct Node_ {
+            Node_() {
+                for (uint16_t s=0; s < NumCells/CellsPerAllocation; ++s) {
+                    memBlock_[s*CellsPerAllocation].next_
+                        .store(&memBlock_[(s+1)*CellsPerAllocation],
+                               std::memory_order_relaxed);
+                }
+                auto& last = memBlock_[NumCells-CellsPerAllocation];
+                last.next_.store(nullptr, std::memory_order_relaxed);
+            }
+            Cell_ memBlock_[NumCells];
+            Node_* next_;
+        };
+
+        std::atomic<Node_*> handle_;
+        std::atomic<Cell_*> head_;
     };
 }
 
