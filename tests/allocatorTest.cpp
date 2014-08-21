@@ -4,6 +4,7 @@
 #include <list>
 #include <thread>
 #include <future>
+#include <set>
 
 TEST(AllocatorTest, Equality) {
     lfpAlloc::lfpAllocator<int, 8> allocator;
@@ -19,6 +20,17 @@ TEST(AllocatorTest, Allocate) {
     lfpAlloc::lfpAllocator<int> allocator;
     for (std::size_t s=0; s<5e6; ++s) {
         EXPECT_NE(allocator.allocate(1), nullptr);
+    }
+}
+
+TEST(AllocatorTest, Distinct) {
+    lfpAlloc::lfpAllocator<int> allocator;
+    std::set<int*> prevVals;
+    for (std::size_t s=0; s<5e4; ++s) {
+        auto val = allocator.allocate(1);
+        EXPECT_NE(val, nullptr);
+        EXPECT_EQ(prevVals.count(val), 0);
+        prevVals.insert(val);
     }
 }
 
