@@ -62,7 +62,14 @@ TEST(AllocatorTest, Concurrent) {
         }
         return v;
     });
+
+    std::vector<int> v;
+    for (std::size_t s=0; s<5e6; ++s) {
+        v.push_back(s);
+    }
+
     auto result1 = future1.get();
     auto result2 = future2.get();
+    EXPECT_TRUE(std::equal(v.begin(), v.end(), result1.begin()));
     EXPECT_TRUE(std::equal(result1.begin(), result1.end(), result2.begin()));
 }

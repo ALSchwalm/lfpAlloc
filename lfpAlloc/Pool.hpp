@@ -4,19 +4,18 @@
 #include <cstdint>
 #include <atomic>
 #include <memory>
-#include <iostream>
-#include <cassert>
+#include <type_traits>
 
 namespace lfpAlloc {
 
-    template<typename T, uint16_t CellsPerAllocation, std::size_t NumCells>
+    template<typename T, std::size_t CellsPerAllocation, std::size_t NumCells>
     class Pool {
     public:
         static_assert(NumCells % CellsPerAllocation == 0,
                       "NumCells must be a multiple of CellsPerAllocation.");
 
-        Pool() : handle_(new Node_),
-                 head_(&handle_.load()->memBlock_[0]){}
+        Pool() : handle_(nullptr),
+                 head_(nullptr){}
 
         ~Pool() {
             Node_* node = handle_.load();
@@ -31,43 +30,45 @@ namespace lfpAlloc {
             Cell_* currentHead;
             Cell_* currentNext;
 
-            Node_* currentHandle;
-            Node_* newNode;
-
-            // Out of cells to allocate
-            if (!head_.load()) {
-
-                // Make a new node
-                newNode = new Node_;
-
-                // Point the current Head's next to the head of the new node
-                do {
-                    currentHead = head_.load();
-                    newNode->memBlock_[NumCells-CellsPerAllocation].next_ = currentHead;
-
-                    // The first block is reserved for the current request
-                } while(!head_.compare_exchange_strong(currentHead, &newNode->memBlock_[1]));
-
-                // Add the node to the chain
-                do {
-                    currentHandle = handle_.load();
-                    newNode->next_ = currentHandle;
-                } while(!handle_.compare_exchange_strong(currentHandle, newNode));
-
-                return reinterpret_cast<T*>(&newNode->memBlock_[0]);
-            }
-
             // Allocate by making head = head.next
             do {
                 currentHead = head_.load();
+
+                // Out of cells to allocate
+                if (!currentHead) {
+                    Node_* currentHandle;
+                    Node_* newNode;
+
+                    // Make a new node
+                    newNode = new Node_;
+
+                    // Point the current Head's next to the head of the new node
+                    do {
+                        currentHead = head_.load();
+                        newNode->memBlock_[NumCells-CellsPerAllocation].next_ = currentHead;
+
+                        // The first block is reserved for the current request
+                    } while(!head_.compare_exchange_strong(currentHead, &newNode->memBlock_[1]));
+
+                    // Add the node to the chain
+                    do {
+                        currentHandle = handle_.load();
+                        newNode->next_ = currentHandle;
+                    } while(!handle_.compare_exchange_strong(currentHandle, newNode));
+
+                    return reinterpret_cast<T*>(&newNode->memBlock_[0]);
+                }
+
                 currentNext = currentHead->next_.load();
             } while (!head_.compare_exchange_strong(currentHead, currentNext));
             return reinterpret_cast<T*>(currentHead);
         }
 
-        void deallocate(void* p) {
+        void deallocate(void* p) noexcept {
             auto newHead = reinterpret_cast<Cell_*>(p);
             Cell_* currentHead;
+
+            // Deallocate by making newHead.next = head
             do {
                 currentHead = head_.load();
                 newHead->next_ = currentHead;
@@ -81,8 +82,8 @@ namespace lfpAlloc {
         };
 
         struct Node_ {
-            Node_() {
-                for (uint16_t s=0; s < NumCells/CellsPerAllocation; ++s) {
+            Node_() noexcept {
+                for (std::size_t s=0; s < NumCells/CellsPerAllocation; ++s) {
                     memBlock_[s*CellsPerAllocation].next_
                         .store(&memBlock_[(s+1)*CellsPerAllocation],
                                std::memory_order_relaxed);

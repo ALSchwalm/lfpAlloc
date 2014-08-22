@@ -33,7 +33,7 @@ namespace lfpAlloc {
             return dispatchAllocate<1>(size);
         }
 
-        void deallocate(T* p, std::size_t size) {
+        void deallocate(T* p, std::size_t size) noexcept {
             dispatchDeallocate<1>(p, size);
         }
     private:
@@ -56,7 +56,7 @@ namespace lfpAlloc {
 
         template<std::size_t ChunkSize>
         typename std::enable_if<ChunkSize <= MaxChunkSize>::type
-        dispatchDeallocate(T* p, std::size_t requestSize) {
+        dispatchDeallocate(T* p, std::size_t requestSize) noexcept {
             if (requestSize <= detail::Power<ChunkSize>::value) {
                 std::get<ChunkSize-1>(pools).deallocate(p);
             }
@@ -67,7 +67,7 @@ namespace lfpAlloc {
 
         template<std::size_t ChunkSize>
         typename std::enable_if<!(ChunkSize <= MaxChunkSize)>::type
-        dispatchDeallocate(T* p, std::size_t requestSize) {
+        dispatchDeallocate(T* p, std::size_t requestSize) noexcept {
             delete[] p;
         }
 
