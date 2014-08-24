@@ -48,19 +48,19 @@ namespace lfpAlloc {
                         newNode->memBlock_[NumCells-CellsPerAllocation].next_ = currentHead;
 
                         // The first block is reserved for the current request
-                    } while(!head_.compare_exchange_strong(currentHead, &newNode->memBlock_[1]));
+                    } while(!head_.compare_exchange_weak(currentHead, &newNode->memBlock_[1]));
 
                     // Add the node to the chain
                     do {
                         currentHandle = handle_.load();
                         newNode->next_ = currentHandle;
-                    } while(!handle_.compare_exchange_strong(currentHandle, newNode));
+                    } while(!handle_.compare_exchange_weak(currentHandle, newNode));
 
                     return reinterpret_cast<T*>(&newNode->memBlock_[0]);
                 }
 
                 currentNext = currentHead->next_.load();
-            } while (!head_.compare_exchange_strong(currentHead, currentNext));
+            } while (!head_.compare_exchange_weak(currentHead, currentNext));
             return reinterpret_cast<T*>(currentHead);
         }
 
@@ -71,8 +71,8 @@ namespace lfpAlloc {
             // Deallocate by making newHead.next = head
             do {
                 currentHead = head_.load();
-                newHead->next_ = currentHead;
-            } while (!head_.compare_exchange_strong(currentHead, newHead));
+                newHead->next_.store(currentHead);
+            } while (!head_.compare_exchange_weak(currentHead, newHead));
         }
 
     private:
