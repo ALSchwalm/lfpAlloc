@@ -5,6 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <type_traits>
+#include <iostream>
 
 namespace lfpAlloc {
 
@@ -27,7 +28,10 @@ namespace lfpAlloc {
         }
 
         T* allocate(){
+            // Head atomic loaded from head_
             Cell_* currentHead;
+
+            uintptr_t tag;
             Cell_* currentNext;
 
             // Allocate by making head = head.next
@@ -55,11 +59,17 @@ namespace lfpAlloc {
                         currentHandle = handle_.load();
                         newNode->next_ = currentHandle;
                     } while(!handle_.compare_exchange_weak(currentHandle, newNode));
-
                     return reinterpret_cast<T*>(&newNode->memBlock_[0]);
                 }
 
-                currentNext = currentHead->next_.load();
+                currentNext = withoutTag(currentHead)->next_.load();
+                tag = (reinterpret_cast<uintptr_t>(currentNext)+1) & 0x3;
+
+                // Don't add tag to the nullptr
+                if (currentNext) {
+                    currentNext = addTag(currentNext, tag);
+                }
+
             } while (!head_.compare_exchange_weak(currentHead, currentNext));
             return reinterpret_cast<T*>(currentHead);
         }
@@ -94,6 +104,15 @@ namespace lfpAlloc {
             Cell_ memBlock_[NumCells];
             Node_* next_ = nullptr;
         };
+
+        inline Cell_* withoutTag(Cell_* const& cell) const {
+            return reinterpret_cast<Cell_*>((reinterpret_cast<uintptr_t>(cell) & ~0x3));
+        }
+
+        template<typename Tag_t>
+        inline Cell_* addTag(Cell_* const& cell, Tag_t tag) const {
+            return reinterpret_cast<Cell_*>((reinterpret_cast<uintptr_t>(cell) & ~0x3) | tag);
+        }
 
         std::atomic<Node_*> handle_;
         std::atomic<Cell_*> head_;
