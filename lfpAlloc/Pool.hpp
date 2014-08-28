@@ -5,7 +5,6 @@
 #include <atomic>
 #include <memory>
 #include <type_traits>
-#include <iostream>
 
 namespace lfpAlloc {
 
@@ -63,6 +62,8 @@ namespace lfpAlloc {
                 }
 
                 currentNext = withoutTag(currentHead)->next_.load();
+
+                // Increment the tag by one
                 tag = (reinterpret_cast<uintptr_t>(currentNext)+1) & 0x3;
 
                 // Don't add tag to the nullptr
@@ -71,7 +72,7 @@ namespace lfpAlloc {
                 }
 
             } while (!head_.compare_exchange_weak(currentHead, currentNext));
-            return reinterpret_cast<T*>(currentHead);
+            return reinterpret_cast<T*>(withoutTag(currentHead));
         }
 
         void deallocate(void* p) noexcept {
