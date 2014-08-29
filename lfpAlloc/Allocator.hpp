@@ -3,8 +3,18 @@
 
 #include <memory>
 #include <lfpAlloc/PoolDispatcher.hpp>
+#include <thread>
 
 namespace lfpAlloc {
+    namespace detail {
+        unsigned int currendThreadHashedID() {
+            static std::hash<std::thread::id> hash_fun;
+            return hash_fun(std::this_thread::get_id()) %
+                std::thread::hardware_concurrency();
+        }
+    }
+
+
     template<typename T, std::size_t MaxChunkSize=8>
     class lfpAllocator {
     public:
@@ -19,7 +29,9 @@ namespace lfpAlloc {
             typedef lfpAllocator<U, MaxChunkSize> other;
         };
 
-        lfpAllocator() : dispatcher(new PoolDispatcher<T, MaxChunkSize>) {}
+        lfpAllocator() :
+            dispatcher(new PoolDispatcher<T, MaxChunkSize>[std::thread::hardware_concurrency()],
+                       [](PoolDispatcher<T, MaxChunkSize>*p) { delete[] p; }) {}
 
         lfpAllocator(const lfpAllocator& other) noexcept :
             dispatcher(other.dispatcher) {}
@@ -30,11 +42,11 @@ namespace lfpAlloc {
         }
 
         T* allocate(std::size_t size) {
-            return dispatcher->allocate(size);
+            return (dispatcher.get()+hashedID)->allocate(size);
         }
 
         void deallocate(T* p, std::size_t size) noexcept {
-            dispatcher->deallocate(p, size);
+            (dispatcher.get()+hashedID)->deallocate(p, size);
         }
 
         // Should not be required, but allocator_traits is not complete in
@@ -55,7 +67,12 @@ namespace lfpAlloc {
 
     private:
         std::shared_ptr<PoolDispatcher<T, MaxChunkSize>> dispatcher;
+        static thread_local const unsigned int hashedID;
     };
+
+    template<typename T, std::size_t MaxChunkSize>
+    thread_local const unsigned int lfpAllocator<T, MaxChunkSize>::hashedID =
+        detail::currendThreadHashedID();
 
     template<typename T, typename U, std::size_t N, std::size_t M>
     inline bool operator==(const lfpAllocator<T, N>& left,
@@ -64,8 +81,8 @@ namespace lfpAlloc {
     }
 
     template<typename T, typename U, std::size_t N, std::size_t M>
-    inline bool operator==(const lfpAllocator<T, N>& left,
-                           const lfpAllocator<T, M>& right) noexcept {
+    inline bool operator!=(const lfpAllocator<T, N>& left,
+                           const lfpAllocator<U, M>& right) noexcept {
         return !(left == right);
     }
 }
