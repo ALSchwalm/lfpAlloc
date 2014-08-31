@@ -7,15 +7,17 @@
 
 namespace lfpAlloc {
     namespace detail {
-        unsigned int currendThreadHashedID() {
+        int currendThreadHashedID() {
             static std::hash<std::thread::id> hash_fun;
             return hash_fun(std::this_thread::get_id()) %
                 std::thread::hardware_concurrency();
         }
+
+        static thread_local int hashedID=-1;
     }
 
 
-    template<typename T, std::size_t MaxChunkSize=8>
+    template<typename T, std::size_t NumPools=8>
     class lfpAllocator {
     public:
         using value_type = T;
@@ -26,27 +28,43 @@ namespace lfpAlloc {
 
         template<typename U>
         struct rebind {
-            typedef lfpAllocator<U, MaxChunkSize> other;
+            typedef lfpAllocator<U, NumPools> other;
         };
 
         lfpAllocator() :
-            dispatcher(new PoolDispatcher<T, MaxChunkSize>[std::thread::hardware_concurrency()],
-                       [](PoolDispatcher<T, MaxChunkSize>*p) { delete[] p; }) {}
+            dispatcher(new PoolDispatcher<NumPools>[std::thread::hardware_concurrency()],
+                       [](PoolDispatcher<NumPools>*p) { delete[] p; }) {}
 
         lfpAllocator(const lfpAllocator& other) noexcept :
-            dispatcher(other.dispatcher) {}
+        dispatcher(other.dispatcher) {}
+
+        template<typename U>
+        lfpAllocator(const lfpAllocator<U, NumPools>& other) noexcept :
+            dispatcher(other.getDispatcher()) {}
 
         lfpAllocator& operator=(const lfpAllocator& other) noexcept {
             dispatcher.reset(other.dispatcher.get());
             return *this;
         }
 
-        T* allocate(std::size_t size) {
-            return (dispatcher.get()+hashedID)->allocate(size);
+        T* allocate(std::size_t count) {
+            if (detail::hashedID == -1) {
+                detail::hashedID = detail::currendThreadHashedID();
+            }
+
+            if (sizeof(T)*count < NumPools) {
+                return reinterpret_cast<T*>((dispatcher.get()+detail::hashedID)->allocate(sizeof(T)*count));
+            } else {
+                return new T[count];
+            }
         }
 
-        void deallocate(T* p, std::size_t size) noexcept {
-            (dispatcher.get()+hashedID)->deallocate(p, size);
+        void deallocate(T* p, std::size_t count) noexcept {
+            if (sizeof(T)*count < NumPools) {
+                (dispatcher.get()+detail::hashedID)->deallocate(p, sizeof(T)*count);
+            } else {
+                delete[] p;
+            }
         }
 
         // Should not be required, but allocator_traits is not complete in
@@ -61,18 +79,17 @@ namespace lfpAlloc {
             new (p) U(std::forward<Args>(args)...);
         }
 
+        const std::shared_ptr<PoolDispatcher<NumPools>>& getDispatcher() const {
+            return dispatcher;
+        }
+
         template<typename Ty, typename U, std::size_t N, std::size_t M>
         friend bool operator==(const lfpAllocator<Ty, N>& left,
                                const lfpAllocator<U, M>& right) noexcept;
 
     private:
-        std::shared_ptr<PoolDispatcher<T, MaxChunkSize>> dispatcher;
-        static thread_local const unsigned int hashedID;
+        std::shared_ptr<PoolDispatcher<NumPools>> dispatcher;
     };
-
-    template<typename T, std::size_t MaxChunkSize>
-    thread_local const unsigned int lfpAllocator<T, MaxChunkSize>::hashedID =
-        detail::currendThreadHashedID();
 
     template<typename T, typename U, std::size_t N, std::size_t M>
     inline bool operator==(const lfpAllocator<T, N>& left,

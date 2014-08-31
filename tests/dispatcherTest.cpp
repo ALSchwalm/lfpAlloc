@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 TEST(DispatcherTest, Allocate) {
-    lfpAlloc::PoolDispatcher<int, 8> dispatcher;
+    lfpAlloc::PoolDispatcher<8> dispatcher;
 
     std::vector<int*> v;
     for (std::size_t s=0; s < 5e6; ++s) {
@@ -12,11 +12,11 @@ TEST(DispatcherTest, Allocate) {
 }
 
 TEST(DispatcherTest, Deallocate) {
-    lfpAlloc::PoolDispatcher<int, 8> dispatcher;
+    lfpAlloc::PoolDispatcher<8> dispatcher;
 
     std::vector<int*> v;
     for (std::size_t s=0; s < 5e6; ++s) {
-        auto p = dispatcher.allocate(1);
+        auto p = reinterpret_cast<int*>(dispatcher.allocate(1));
         v.push_back(p);
     }
 
