@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 TEST(PoolTest, Allocate) {
-    lfpAlloc::Pool<int, 1, 40000> pool;
+    lfpAlloc::Pool<sizeof(void*), 40000> pool;
 
     std::vector<int*> v;
     for (std::size_t s=0; s < 5e6; ++s) {
@@ -12,7 +12,7 @@ TEST(PoolTest, Allocate) {
 }
 
 TEST(PoolTest, Deallocate) {
-    lfpAlloc::Pool<int, 1, 40000> pool;
+    lfpAlloc::Pool<sizeof(void*), 40000> pool;
 
     std::vector<int*> v;
     for (std::size_t s=0; s < 5e6; ++s) {

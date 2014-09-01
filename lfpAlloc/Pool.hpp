@@ -5,34 +5,14 @@
 #include <atomic>
 #include <memory>
 #include <type_traits>
+#include <lfpAlloc/Utils.hpp>
 
 namespace lfpAlloc {
-
-    namespace detail {
-        template<std::size_t Val, std::size_t base=2>
-        struct log
-        {
-            enum { value = 1 + log<Val/base, base>::value };
-        };
-
-        template<std::size_t base>
-        struct log<1, base>
-        {
-            enum { value = 0 };
-        };
-
-        template<std::size_t base>
-        struct log<0, base>
-        {
-            enum { value = 0 };
-        };
-    }
-
-    template<typename T, std::size_t CellsPerAllocation, std::size_t NumCells>
+    template<std::size_t Size, std::size_t AllocationsPerChunk>
     class Pool {
     public:
-        static_assert(NumCells % CellsPerAllocation == 0,
-                      "NumCells must be a multiple of CellsPerAllocation.");
+        static_assert(Size >= sizeof(void*), "Invalid pool size.");
+        static constexpr std::size_t size = Size;
 
         Pool() : handle_(nullptr),
                  head_(nullptr){}
@@ -46,7 +26,7 @@ namespace lfpAlloc {
             }
         }
 
-        T* allocate(){
+        void* allocate(){
             // Head atomic loaded from head_
             Cell_* currentHead;
 
@@ -68,7 +48,7 @@ namespace lfpAlloc {
                     // Point the current Head's next to the head of the new node
                     do {
                         currentHead = head_.load();
-                        newNode->memBlock_[NumCells-CellsPerAllocation].next_ = currentHead;
+                        newNode->memBlock_[AllocationsPerChunk-1].next_ = currentHead;
 
                         // The first block is reserved for the current request
                     } while(!head_.compare_exchange_weak(currentHead, &newNode->memBlock_[1]));
@@ -78,11 +58,10 @@ namespace lfpAlloc {
                         currentHandle = handle_.load();
                         newNode->next_ = currentHandle;
                     } while(!handle_.compare_exchange_weak(currentHandle, newNode));
-                    return reinterpret_cast<T*>(&newNode->memBlock_[0]);
+                    return reinterpret_cast<void*>(&newNode->memBlock_[0]);
                 }
 
                 currentNext = withoutTag(currentHead)->next_.load();
-
                 // Increment the tag by one
                 tag = (reinterpret_cast<uintptr_t>(currentNext)+1) &
                     detail::log<sizeof(Cell_)>::value;
@@ -93,7 +72,7 @@ namespace lfpAlloc {
                 }
 
             } while (!head_.compare_exchange_weak(currentHead, currentNext));
-            return reinterpret_cast<T*>(withoutTag(currentHead));
+            return reinterpret_cast<void*>(withoutTag(currentHead));
         }
 
         void deallocate(void* p) noexcept {
@@ -110,20 +89,19 @@ namespace lfpAlloc {
     private:
         union Cell_{
             std::atomic<Cell_*> next_;
-            uint8_t val[sizeof(T)];
+            uint8_t val[Size];
         };
 
         struct Node_ {
             Node_() noexcept {
-                for (std::size_t s=0; s < NumCells/CellsPerAllocation; ++s) {
-                    memBlock_[s*CellsPerAllocation].next_
-                        .store(&memBlock_[(s+1)*CellsPerAllocation],
-                               std::memory_order_relaxed);
+                for (std::size_t s=0; s < AllocationsPerChunk-1; ++s) {
+                    memBlock_[s].next_
+                        .store(&memBlock_[s+1], std::memory_order_relaxed);
                 }
-                auto& last = memBlock_[NumCells-CellsPerAllocation];
+                auto& last = memBlock_[AllocationsPerChunk-1];
                 last.next_.store(nullptr, std::memory_order_relaxed);
             }
-            Cell_ memBlock_[NumCells];
+            Cell_ memBlock_[AllocationsPerChunk];
             Node_* next_ = nullptr;
         };
 
