@@ -7,12 +7,10 @@
 
 namespace lfpAlloc {
     namespace detail {
+        static std::atomic<char> currentID(0);
         int currendThreadHashedID() {
-            static std::hash<std::thread::id> hash_fun;
-            return hash_fun(std::this_thread::get_id()) %
-                std::thread::hardware_concurrency();
+            return currentID++ % std::thread::hardware_concurrency();;
         }
-
         static thread_local int hashedID=-1;
     }
 
