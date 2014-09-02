@@ -35,14 +35,18 @@ namespace lfpAlloc {
         lfpAllocator(const lfpAllocator& other) noexcept :
             dispatcher(other.dispatcher) {}
 
+        lfpAllocator(lfpAllocator&& other) noexcept = default;
+
+        lfpAllocator& operator=(const lfpAllocator& other) noexcept = default;
+        lfpAllocator& operator=(lfpAllocator&& other) noexcept = default;
+
+        template<typename U>
+        lfpAllocator(lfpAllocator<U, MaxPoolPower>&& other) noexcept :
+            dispatcher(std::move(other.getDispatcher())) {}
+
         template<typename U>
         lfpAllocator(const lfpAllocator<U, MaxPoolPower>& other) noexcept :
             dispatcher(other.getDispatcher()) {}
-
-        lfpAllocator& operator=(const lfpAllocator& other) noexcept {
-            dispatcher.reset(other.dispatcher.get());
-            return *this;
-        }
 
         T* allocate(std::size_t count) {
             if (detail::hashedID == -1) {
@@ -74,6 +78,10 @@ namespace lfpAlloc {
         template<typename U, typename... Args >
         void construct( U* p, Args&&... args ) {
             new (p) U(std::forward<Args>(args)...);
+        }
+
+        std::shared_ptr<PoolDispatcher<MaxPoolPower>>& getDispatcher() {
+            return dispatcher;
         }
 
         const std::shared_ptr<PoolDispatcher<MaxPoolPower>>& getDispatcher() const {
