@@ -46,7 +46,7 @@ namespace lfpAlloc {
 
         template<std::size_t Index>
         typename std::enable_if< !(Index < NumPools), void*>::type
-        dispatchAllocate(std::size_t requestSize) {
+        dispatchAllocate(std::size_t) {
             assert(false && "Invalid allocation size.");
             return nullptr;
         }
@@ -64,7 +64,7 @@ namespace lfpAlloc {
 
         template<std::size_t Index>
         typename std::enable_if<!(Index < NumPools)>::type
-        dispatchDeallocate(void* p, std::size_t requestSize) noexcept {
+        dispatchDeallocate(void*, std::size_t) noexcept {
             assert(false && "Invalid deallocation size.");
         }
     };
