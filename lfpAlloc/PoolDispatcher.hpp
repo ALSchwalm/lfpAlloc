@@ -12,7 +12,7 @@ namespace lfpAlloc {
         struct Pools : Pools<Num-1, Power<Num>::value, Ts...>{};
 
         template<uint16_t... Size>
-        struct Pools<log<sizeof(void*)>::value, Size...>{
+        struct Pools<Log<sizeof(void*)>::value, Size...>{
             using type = std::tuple<Pool<Size, 256*100>...>;
         };
     }

@@ -11,21 +11,21 @@ namespace lfpAlloc {
                 value = Val/2
             };
         };
-        
+
         template<std::size_t Val, std::size_t base=2>
-        struct log
+        struct Log
         {
-            enum { value = 1 + log<Val/base, base>::value };
+            enum { value = 1 + Log<Val/base, base>::value };
         };
 
         template<std::size_t base>
-        struct log<1, base>
+        struct Log<1, base>
         {
             enum { value = 0 };
         };
 
         template<std::size_t base>
-        struct log<0, base>
+        struct Log<0, base>
         {
             enum { value = 0 };
         };

@@ -64,7 +64,7 @@ namespace lfpAlloc {
                 currentNext = withoutTag(currentHead)->next_.load();
                 // Increment the tag by one
                 tag = (reinterpret_cast<uintptr_t>(currentNext)+1) &
-                    detail::log<sizeof(Cell_)>::value;
+                    detail::Log<sizeof(Cell_)>::value;
 
                 // Don't add tag to the nullptr
                 if (currentNext) {
@@ -107,13 +107,13 @@ namespace lfpAlloc {
 
         inline Cell_* withoutTag(Cell_* const& cell) const {
             return reinterpret_cast<Cell_*>((reinterpret_cast<uintptr_t>(cell) &
-                                             ~detail::log<sizeof(Cell_)>::value));
+                                             ~detail::Log<sizeof(Cell_)>::value));
         }
 
         template<typename Tag_t>
         inline Cell_* addTag(Cell_* const& cell, Tag_t tag) const {
             return reinterpret_cast<Cell_*>((reinterpret_cast<uintptr_t>(cell) &
-                                             ~detail::log<sizeof(Cell_)>::value) | tag);
+                                             ~detail::Log<sizeof(Cell_)>::value) | tag);
         }
 
         std::atomic<Node_*> handle_;
