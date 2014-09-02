@@ -73,3 +73,41 @@ TEST(AllocatorTest, Concurrent) {
     EXPECT_TRUE(std::equal(v.begin(), v.end(), result1.begin()));
     EXPECT_TRUE(std::equal(result1.begin(), result1.end(), result2.begin()));
 }
+
+TEST(AllocatorTest, Alignment) {
+    auto isAligned = [](void* p, int alignment) {
+        return reinterpret_cast<uintptr_t>(p) % alignment == 0;
+    };
+
+    lfpAlloc::lfpAllocator<int, 8> intAlloc;
+    for (std::size_t s=0; s < 5e4; ++s) {
+        EXPECT_TRUE(isAligned(intAlloc.allocate(1), alignof(int)));
+    }
+
+    lfpAlloc::lfpAllocator<short, 8> shortAlloc(intAlloc);
+    for (std::size_t s=0; s < 5e4; ++s) {
+        EXPECT_TRUE(isAligned(shortAlloc.allocate(1), alignof(short)));
+    }
+
+    struct S{
+        char c;
+        float f;
+    };
+
+    lfpAlloc::lfpAllocator<S, 8> sAlloc(intAlloc);
+    for (std::size_t s=0; s < 5e4; ++s) {
+        EXPECT_TRUE(isAligned(sAlloc.allocate(1), alignof(S)));
+    }
+}
+
+TEST(AllocatorTest, Move) {
+    lfpAlloc::lfpAllocator<std::string> strAlloc;
+    std::string* strPtr = strAlloc.allocate(1);
+    EXPECT_NE(strPtr, nullptr);
+
+    lfpAlloc::lfpAllocator<std::string> strAlloc2(std::move(strAlloc));
+
+    lfpAlloc::lfpAllocator<int> intAlloc = std::move(strAlloc2);
+    int* intPtr = intAlloc.allocate(1);
+    EXPECT_NE(intPtr, nullptr);
+}
