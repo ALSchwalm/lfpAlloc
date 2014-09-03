@@ -54,7 +54,8 @@ namespace lfpAlloc {
             }
 
             if (sizeof(T)*count <= detail::Power<MaxPoolPower>::value) {
-                return reinterpret_cast<T*>((dispatcher.get()+detail::hashedID)->allocate(sizeof(T)*count));
+                auto dispatch = dispatcher.get()+detail::hashedID;
+                return reinterpret_cast<T*>(dispatch->allocate(sizeof(T)*count));
             } else {
                 return new T[count];
             }
