@@ -31,7 +31,7 @@ namespace lfpAlloc {
         typename detail::Pools<MaxPoolPower>::type pools;
         static constexpr std::size_t NumPools =
                                 std::tuple_size<decltype(pools)>::value;
-        static_assert(NumPools > 0, "Invalid number of pool");
+        static_assert(NumPools > 0, "Invalid number of pools");
 
         template<std::size_t Index>
         typename std::enable_if<Index < NumPools, void*>::type
