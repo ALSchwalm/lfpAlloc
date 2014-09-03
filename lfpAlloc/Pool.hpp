@@ -7,6 +7,10 @@
 #include <type_traits>
 #include <lfpAlloc/Utils.hpp>
 
+#ifndef LFP_ALLOW_BLOCKING
+static_assert(ATOMIC_POINTER_LOCK_FREE==2, "Atomic pointer is not lock-free.");
+#endif
+
 namespace lfpAlloc {
     template<std::size_t Size, std::size_t AllocationsPerChunk>
     class Pool {
