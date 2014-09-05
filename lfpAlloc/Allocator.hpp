@@ -53,7 +53,7 @@ namespace lfpAlloc {
                 detail::hashedID = detail::currendThreadHashedID();
             }
 
-            if (sizeof(T)*count <= detail::Power<MaxPoolPower>::value) {
+            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
                 auto dispatch = dispatcher.get()+detail::hashedID;
                 return reinterpret_cast<T*>(dispatch->allocate(sizeof(T)*count));
             } else {
@@ -62,7 +62,7 @@ namespace lfpAlloc {
         }
 
         void deallocate(T* p, std::size_t count) noexcept {
-            if (sizeof(T)*count <= detail::Power<MaxPoolPower>::value) {
+            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
                 (dispatcher.get()+detail::hashedID)->deallocate(p, sizeof(T)*count);
             } else {
                 delete[] p;

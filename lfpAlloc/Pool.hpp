@@ -16,7 +16,7 @@ namespace lfpAlloc {
     class Pool {
     public:
         static_assert(Size >= sizeof(void*), "Invalid pool size.");
-        static constexpr std::size_t size = Size;
+        static constexpr std::size_t size = Size-sizeof(void*);
 
         Pool() : handle_(nullptr),
                  head_(nullptr){}
@@ -71,9 +71,9 @@ namespace lfpAlloc {
         }
 
     private:
-        union Cell_{
+        struct Cell_{
             std::atomic<Cell_*> next_;
-            uint8_t val[Size];
+            uint8_t val[size];
         };
 
         struct Node_ {

@@ -3,16 +3,17 @@
 
 #include <tuple>
 #include <cassert>
+#include <cstddef>
 #include <lfpAlloc/Pool.hpp>
 
 namespace lfpAlloc {
     namespace detail {
 
         template<std::size_t Num, uint16_t... Ts>
-        struct Pools : Pools<Num-1, Power<Num>::value, Ts...>{};
+        struct Pools : Pools<Num-1, alignof(std::max_align_t)*Num, Ts...>{};
 
         template<uint16_t... Size>
-        struct Pools<Log<sizeof(void*)>::value, Size...>{
+        struct Pools<0, Size...>{
             using type = std::tuple<Pool<Size, 256*100>...>;
         };
     }
@@ -35,7 +36,7 @@ namespace lfpAlloc {
 
         template<std::size_t Index>
         typename std::enable_if<Index < NumPools, void*>::type
-        dispatchAllocate(std::size_t requestSize) {
+        dispatchAllocate(std::size_t const& requestSize) {
             if (requestSize <= std::get<Index>(pools).size) {
                 return std::get<Index>(pools).allocate();
             }
@@ -46,14 +47,14 @@ namespace lfpAlloc {
 
         template<std::size_t Index>
         typename std::enable_if< !(Index < NumPools), void*>::type
-        dispatchAllocate(std::size_t) {
+        dispatchAllocate(std::size_t const&) {
             assert(false && "Invalid allocation size.");
             return nullptr;
         }
 
         template<std::size_t Index>
         typename std::enable_if<Index < NumPools>::type
-        dispatchDeallocate(void* p, std::size_t requestSize) noexcept {
+        dispatchDeallocate(void* p, std::size_t const& requestSize) noexcept {
             if (requestSize <= std::get<Index>(pools).size) {
                 std::get<Index>(pools).deallocate(p);
             }
@@ -64,7 +65,7 @@ namespace lfpAlloc {
 
         template<std::size_t Index>
         typename std::enable_if<!(Index < NumPools)>::type
-        dispatchDeallocate(void*, std::size_t) noexcept {
+        dispatchDeallocate(void*, std::size_t const&) noexcept {
             assert(false && "Invalid deallocation size.");
         }
     };
