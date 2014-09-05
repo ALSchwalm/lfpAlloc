@@ -32,46 +32,27 @@ namespace lfpAlloc {
 
         void* allocate(){
             // Head atomic loaded from head_
-            Cell_* currentHead;
+            Cell_* currentHead = head_.load();
 
             uintptr_t tag;
             Cell_* currentNext;
 
             // Allocate by making head = head.next
             do {
-                currentHead = head_.load();
-
                 // Out of cells to allocate
                 if (!currentHead) {
-                    Node_* currentHandle;
-                    Node_* newNode;
-
-                    // Make a new node
-                    newNode = new Node_;
-
-                    // Point the current Head's next to the head of the new node
-                    do {
-                        currentHead = head_.load();
-                        newNode->memBlock_[AllocationsPerChunk-1].next_ = currentHead;
-
-                        // The first block is reserved for the current request
-                    } while(!head_.compare_exchange_weak(currentHead, &newNode->memBlock_[1]));
-
-                    // Add the node to the chain
-                    do {
-                        currentHandle = handle_.load();
-                        newNode->next_ = currentHandle;
-                    } while(!handle_.compare_exchange_weak(currentHandle, newNode));
-                    return reinterpret_cast<void*>(&newNode->memBlock_[0]);
+                    return allocateFromNewNode(currentHead);
                 }
 
                 currentNext = withoutTag(currentHead)->next_.load();
-                // Increment the tag by one
-                tag = (reinterpret_cast<uintptr_t>(currentNext)+1) &
-                    detail::Log<sizeof(Cell_)>::value;
 
                 // Don't add tag to the nullptr
                 if (currentNext) {
+
+                    // Increment the tag by one
+                    tag = (reinterpret_cast<uintptr_t>(currentNext)+1) &
+                        detail::Log<sizeof(Cell_)>::value;
+
                     currentNext = addTag(currentNext, tag);
                 }
 
@@ -81,12 +62,11 @@ namespace lfpAlloc {
 
         void deallocate(void* p) noexcept {
             auto newHead = reinterpret_cast<Cell_*>(p);
-            Cell_* currentHead;
+            Cell_* currentHead = head_.load();;
 
             // Deallocate by making newHead.next = head
             do {
-                currentHead = head_.load(std::memory_order_relaxed);
-                newHead->next_.store(currentHead, std::memory_order_relaxed);
+                newHead->next_.store(currentHead, std::memory_order_release);
             } while (!head_.compare_exchange_weak(currentHead, newHead));
         }
 
@@ -108,6 +88,29 @@ namespace lfpAlloc {
             Cell_ memBlock_[AllocationsPerChunk];
             Node_* next_ = nullptr;
         };
+
+        inline void* allocateFromNewNode(Cell_*& currentHead) {
+            Node_* currentHandle;
+            Node_* newNode;
+
+            // Make a new node
+            newNode = new Node_;
+
+            // Point the current Head's next to the head of the new node
+            do {
+                newNode->memBlock_[AllocationsPerChunk-1].next_ = currentHead;
+
+                // The first block is reserved for the current request
+            } while(!head_.compare_exchange_weak(currentHead, &newNode->memBlock_[1]));
+
+            currentHandle = handle_.load(std::memory_order_acquire);
+
+            // Add the node to the chain
+            do {
+                newNode->next_ = currentHandle;
+            } while(!handle_.compare_exchange_weak(currentHandle, newNode));
+            return reinterpret_cast<void*>(&newNode->memBlock_[0]);
+        }
 
         inline Cell_* withoutTag(Cell_* const& cell) const {
             return reinterpret_cast<Cell_*>((reinterpret_cast<uintptr_t>(cell) &
