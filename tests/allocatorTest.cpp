@@ -5,26 +5,45 @@
 #include <thread>
 #include <future>
 #include <set>
+#include <type_traits>
+
+using lfpAlloc::lfpAllocator;
+
+TEST(AllocatorTest, TypeTraits) {
+    static_assert(std::is_nothrow_copy_constructible<lfpAllocator<int>>::value,
+                  "No copy constructor");
+
+    static_assert(std::is_nothrow_move_constructible<lfpAllocator<int>>::value,
+                  "No move constructor");
+
+    static_assert(std::is_nothrow_move_assignable<lfpAllocator<int>>::value,
+                  "No move assignment operator");
+
+    static_assert(std::is_nothrow_copy_assignable<lfpAllocator<int>>::value,
+                  "No copy assignment operator");
+}
 
 TEST(AllocatorTest, Equality) {
-    lfpAlloc::lfpAllocator<int, 8> allocator;
-    lfpAlloc::lfpAllocator<int, 8> otherAllocator(allocator);
+    lfpAllocator<int, 8> allocator;
+    lfpAllocator<int, 8> copyAllocator(allocator);
+    lfpAllocator<float, 8> differentAllocator;
 
-    EXPECT_EQ(allocator, otherAllocator);
+    EXPECT_EQ(allocator, copyAllocator);
+    EXPECT_NE(allocator, differentAllocator);
 
     auto val = allocator.allocate(1);
-    otherAllocator.deallocate(val, 1);
+    copyAllocator.deallocate(val, 1);
 }
 
 TEST(AllocatorTest, Allocate) {
-    lfpAlloc::lfpAllocator<int> allocator;
+    lfpAllocator<int> allocator;
     for (std::size_t s=0; s<5e6; ++s) {
         EXPECT_NE(allocator.allocate(1), nullptr);
     }
 }
 
 TEST(AllocatorTest, Distinct) {
-    lfpAlloc::lfpAllocator<int> allocator;
+    lfpAllocator<int> allocator;
     std::set<int*> prevVals;
     for (std::size_t s=0; s<5e4; ++s) {
         auto val = allocator.allocate(1);
@@ -35,8 +54,8 @@ TEST(AllocatorTest, Distinct) {
 }
 
 TEST(AllocatorTest, STLContainer) {
-    std::list<int, lfpAlloc::lfpAllocator<int, 8>> l;
-    std::vector<int, lfpAlloc::lfpAllocator<int, 8>> v;
+    std::list<int, lfpAllocator<int, 8>> l;
+    std::vector<int, lfpAllocator<int, 8>> v;
 
     for (std::size_t s=0; s<5e5; ++s) {
         l.push_back(s);
@@ -46,9 +65,9 @@ TEST(AllocatorTest, STLContainer) {
 }
 
 TEST(AllocatorTest, Concurrent) {
-    lfpAlloc::lfpAllocator<int, 8> allocator;
+    lfpAllocator<int, 8> allocator;
     auto future1 = std::async(std::launch::async, [&]{
-        std::vector<int, lfpAlloc::lfpAllocator<int, 8>> v(allocator);
+        std::vector<int, lfpAllocator<int, 8>> v(allocator);
         for (std::size_t s=0; s<5e6; ++s) {
             v.push_back(s);
         }
@@ -79,12 +98,12 @@ TEST(AllocatorTest, Alignment) {
         return reinterpret_cast<uintptr_t>(p) % alignment == 0;
     };
 
-    lfpAlloc::lfpAllocator<int, 8> intAlloc;
+    lfpAllocator<int, 8> intAlloc;
     for (std::size_t s=0; s < 5e4; ++s) {
         EXPECT_TRUE(isAligned(intAlloc.allocate(1), alignof(int)));
     }
 
-    lfpAlloc::lfpAllocator<short, 8> shortAlloc(intAlloc);
+    lfpAllocator<short, 8> shortAlloc(intAlloc);
     for (std::size_t s=0; s < 5e4; ++s) {
         EXPECT_TRUE(isAligned(shortAlloc.allocate(1), alignof(short)));
     }
@@ -94,20 +113,20 @@ TEST(AllocatorTest, Alignment) {
         float f;
     };
 
-    lfpAlloc::lfpAllocator<S, 8> sAlloc(intAlloc);
+    lfpAllocator<S, 8> sAlloc(intAlloc);
     for (std::size_t s=0; s < 5e4; ++s) {
         EXPECT_TRUE(isAligned(sAlloc.allocate(1), alignof(S)));
     }
 }
 
 TEST(AllocatorTest, Move) {
-    lfpAlloc::lfpAllocator<std::string> strAlloc;
+    lfpAllocator<std::string> strAlloc;
     std::string* strPtr = strAlloc.allocate(1);
     EXPECT_NE(strPtr, nullptr);
 
-    lfpAlloc::lfpAllocator<std::string> strAlloc2(std::move(strAlloc));
+    lfpAllocator<std::string> strAlloc2(std::move(strAlloc));
 
-    lfpAlloc::lfpAllocator<int> intAlloc = std::move(strAlloc2);
+    lfpAllocator<int> intAlloc = std::move(strAlloc2);
     int* intPtr = intAlloc.allocate(1);
     EXPECT_NE(intPtr, nullptr);
 }
