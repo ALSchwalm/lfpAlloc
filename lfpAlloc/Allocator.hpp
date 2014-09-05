@@ -29,24 +29,16 @@ namespace lfpAlloc {
         };
 
         lfpAllocator() :
-            dispatcher(new PoolDispatcher<MaxPoolPower>[std::thread::hardware_concurrency()],
+            dispatcher_(new PoolDispatcher<MaxPoolPower>[std::thread::hardware_concurrency()],
                        [](PoolDispatcher<MaxPoolPower>*p) { delete[] p; }) {}
-
-        lfpAllocator(const lfpAllocator& other) noexcept :
-            dispatcher(other.dispatcher) {}
-
-        lfpAllocator(lfpAllocator&& other) noexcept = default;
-
-        lfpAllocator& operator=(const lfpAllocator& other) noexcept = default;
-        lfpAllocator& operator=(lfpAllocator&& other) noexcept = default;
 
         template<typename U>
         lfpAllocator(lfpAllocator<U, MaxPoolPower>&& other) noexcept :
-            dispatcher(std::move(other.getDispatcher())) {}
+            dispatcher_(std::move(other.dispatcher_)) {}
 
         template<typename U>
         lfpAllocator(const lfpAllocator<U, MaxPoolPower>& other) noexcept :
-            dispatcher(other.getDispatcher()) {}
+            dispatcher_(other.dispatcher_) {}
 
         T* allocate(std::size_t count) {
             if (detail::hashedID == -1) {
@@ -54,7 +46,7 @@ namespace lfpAlloc {
             }
 
             if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
-                auto dispatch = dispatcher.get()+detail::hashedID;
+                auto dispatch = dispatcher_.get()+detail::hashedID;
                 return reinterpret_cast<T*>(dispatch->allocate(sizeof(T)*count));
             } else {
                 return new T[count];
@@ -63,7 +55,7 @@ namespace lfpAlloc {
 
         void deallocate(T* p, std::size_t count) noexcept {
             if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
-                (dispatcher.get()+detail::hashedID)->deallocate(p, sizeof(T)*count);
+                (dispatcher_.get()+detail::hashedID)->deallocate(p, sizeof(T)*count);
             } else {
                 delete[] p;
             }
@@ -81,26 +73,20 @@ namespace lfpAlloc {
             new (p) U(std::forward<Args>(args)...);
         }
 
-        std::shared_ptr<PoolDispatcher<MaxPoolPower>>& getDispatcher() {
-            return dispatcher;
-        }
-
-        const std::shared_ptr<PoolDispatcher<MaxPoolPower>>& getDispatcher() const {
-            return dispatcher;
-        }
-
         template<typename Ty, typename U, std::size_t N, std::size_t M>
         friend bool operator==(const lfpAllocator<Ty, N>& left,
                                const lfpAllocator<U, M>& right) noexcept;
 
+        template<typename U, std::size_t M>
+        friend class lfpAllocator;
     private:
-        std::shared_ptr<PoolDispatcher<MaxPoolPower>> dispatcher;
+        std::shared_ptr<PoolDispatcher<MaxPoolPower>> dispatcher_;
     };
 
     template<typename T, typename U, std::size_t N, std::size_t M>
     inline bool operator==(const lfpAllocator<T, N>& left,
                            const lfpAllocator<U, M>& right) noexcept {
-        return left.dispatcher.get() == right.dispatcher.get();
+        return left.dispatcher_.get() == right.dispatcher_.get();
     }
 
     template<typename T, typename U, std::size_t N, std::size_t M>
