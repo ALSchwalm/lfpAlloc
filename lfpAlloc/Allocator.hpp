@@ -63,8 +63,11 @@ namespace lfpAlloc {
         template<typename U, std::size_t M>
         friend class lfpAllocator;
     private:
-        PoolDispatcher<MaxPoolPower> dispatcher_;
+        static PoolDispatcher<MaxPoolPower> dispatcher_;
     };
+
+    template<typename T, std::size_t N>
+    PoolDispatcher<N> lfpAllocator<T, N>::dispatcher_;
 
     template<typename T, typename U, std::size_t N, std::size_t M>
     inline bool operator==(const lfpAllocator<T, N>&,

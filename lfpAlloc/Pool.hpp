@@ -32,7 +32,7 @@ namespace lfpAlloc {
         }
 
         void* allocate(){
-            // Head atomic loaded from head_
+            // Head loaded from head_
             Cell_* currentHead = head_;
             Cell_* next;
 
