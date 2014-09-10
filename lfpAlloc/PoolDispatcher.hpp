@@ -14,7 +14,7 @@ namespace lfpAlloc {
 
         template<uint16_t... Size>
         struct Pools<0, Size...>{
-            using type = std::tuple<Pool<Size, 256*100>...>;
+            using type = std::tuple<Pool<Size, 64*100>...>;
         };
     }
 
@@ -29,7 +29,7 @@ namespace lfpAlloc {
             dispatchDeallocate<0>(p, size);
         }
     private:
-        typename detail::Pools<MaxPoolPower>::type pools;
+        thread_local static typename detail::Pools<MaxPoolPower>::type pools;
         static constexpr std::size_t NumPools =
                                 std::tuple_size<decltype(pools)>::value;
         static_assert(NumPools > 0, "Invalid number of pools");
@@ -69,6 +69,10 @@ namespace lfpAlloc {
             assert(false && "Invalid deallocation size.");
         }
     };
+
+    template<std::size_t MaxPoolPower>
+    thread_local typename detail::Pools<MaxPoolPower>::type
+    PoolDispatcher<MaxPoolPower>::pools;
 }
 
 #endif

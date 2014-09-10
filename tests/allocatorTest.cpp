@@ -26,7 +26,7 @@ TEST(AllocatorTest, TypeTraits) {
 TEST(AllocatorTest, Equality) {
     lfpAllocator<int, 8> allocator;
     lfpAllocator<int, 8> copyAllocator(allocator);
-    lfpAllocator<float, 8> differentAllocator;
+    lfpAllocator<float, 10> differentAllocator;
 
     EXPECT_EQ(allocator, copyAllocator);
     EXPECT_NE(allocator, differentAllocator);
