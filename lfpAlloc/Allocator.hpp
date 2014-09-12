@@ -11,9 +11,9 @@ namespace lfpAlloc {
     public:
         using value_type = T;
         using pointer = T*;
-        using const_pointer = const pointer;
+        using const_pointer = const T*;
         using reference = T&;
-        using const_reference = const reference;
+        using const_reference = T const&;
 
         template<typename U>
         struct rebind {
@@ -29,7 +29,7 @@ namespace lfpAlloc {
         lfpAllocator(const lfpAllocator<U, MaxPoolPower>&) noexcept{}
 
         T* allocate(std::size_t count) {
-            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower) {
+            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
                 return reinterpret_cast<T*>(dispatcher_.allocate(sizeof(T)*count));
             } else {
                 return new T[count];
@@ -37,7 +37,7 @@ namespace lfpAlloc {
         }
 
         void deallocate(T* p, std::size_t count) noexcept {
-            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower) {
+            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
                 dispatcher_.deallocate(p, sizeof(T)*count);
             } else {
                 delete[] p;
