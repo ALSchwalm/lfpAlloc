@@ -7,7 +7,7 @@
 
 template<typename T>
 void addRemoveTestBody(T& list) {
-    for (std::size_t s=0; s<100e5; ++s) {
+    for (std::size_t s=0; s<4e5; ++s) {
         list.push_back(s);
     }
 
@@ -21,29 +21,33 @@ void addRemoveTestBody(T& list) {
 
 void lfpAddRemoveMultithreadTest() {
     lfpAlloc::lfpAllocator<int> alloc;
+    std::vector<std::thread> threads;
     auto fun = [&alloc]{
         std::list<int, decltype(alloc)> list(alloc);
         addRemoveTestBody(list);
     };
-    auto t1 = std::thread(fun);
-    auto t2 = std::thread(fun);
-    auto t3 = std::thread(fun);
-    auto t4 = std::thread(fun);
+    for (int i=0; i < 16; ++i) {
+        threads.emplace_back(fun);
+    }
 
-    t1.join(); t2.join(); t3.join(); t4.join();
+    for (auto& thread : threads){
+        thread.join();
+    }
 }
 
 void stdAddRemoveMultithreadTest() {
+    std::vector<std::thread> threads;
     auto fun = []{
         std::list<int> list;
         addRemoveTestBody(list);
     };
-    auto t1 = std::thread(fun);
-    auto t2 = std::thread(fun);
-    auto t3 = std::thread(fun);
-    auto t4 = std::thread(fun);
+    for (int i=0; i < 16; ++i) {
+        threads.emplace_back(fun);
+    }
 
-    t1.join(); t2.join(); t3.join(); t4.join();
+    for (auto& thread : threads){
+        thread.join();
+    }
 }
 
 void lfpAddRemoveTest() {
