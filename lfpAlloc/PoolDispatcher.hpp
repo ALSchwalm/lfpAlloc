@@ -37,7 +37,7 @@ namespace lfpAlloc {
         template<std::size_t Index>
         typename std::enable_if<Index < NumPools, void*>::type
         dispatchAllocate(std::size_t const& requestSize) {
-            if (requestSize <= std::get<Index>(pools).size) {
+            if (requestSize <= std::get<Index>(pools).CellSize) {
                 return std::get<Index>(pools).allocate();
             }
             else {
@@ -55,7 +55,7 @@ namespace lfpAlloc {
         template<std::size_t Index>
         typename std::enable_if<Index < NumPools>::type
         dispatchDeallocate(void* p, std::size_t const& requestSize) noexcept {
-            if (requestSize <= std::get<Index>(pools).size) {
+            if (requestSize <= std::get<Index>(pools).CellSize) {
                 std::get<Index>(pools).deallocate(p);
             }
             else {

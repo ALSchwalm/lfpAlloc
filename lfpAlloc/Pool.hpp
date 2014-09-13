@@ -8,21 +8,13 @@ namespace lfpAlloc {
     template<std::size_t Size, std::size_t AllocationsPerChunk>
     class Pool {
     public:
-        static constexpr std::size_t size = Size-sizeof(void*);
-        using Chunk_t = Chunk<Size, AllocationsPerChunk>;
-        using Cell_t = Cell<Size>;
+        static constexpr std::size_t CellSize = Size-sizeof(void*);
+        using Cell_t = Cell<CellSize>;
 
-        Pool() : handle_(nullptr),
-                 head_(nullptr){}
+        Pool() : head_(nullptr){}
 
         ~Pool() {
-            Chunk_t* node = handle_;
-            // TODO: deallocate to inter-thread pool of nodes
-            while(node) {
-                auto temp = node;
-                node = node->next_;
-                delete temp;
-            }
+            chunkList_.deallocateChain(head_);
         }
 
         void* allocate(){
@@ -32,12 +24,12 @@ namespace lfpAlloc {
 
             // Out of cells to allocate
             if (!currentHead) {
-                return allocateFromNewNode(currentHead);
+                return allocateFromNewNode();
             }
 
             next = currentHead->next_;
             head_ = next;
-            return currentHead;
+            return &currentHead->val_;
         }
 
         void deallocate(void* p) noexcept {
@@ -48,29 +40,23 @@ namespace lfpAlloc {
         }
 
     private:
-        static ChunkList<Size> chunkList_;
-        Chunk_t* handle_;
+        static ChunkList<Size, AllocationsPerChunk> chunkList_;
         Cell_t* head_;
 
-        void* allocateFromNewNode(Cell_t*& currentHead) {
-            Chunk_t* currentHandle;
-            Chunk_t* newNode;
+        void* allocateFromNewNode() {
+            Cell_t* allocateCell;
 
-            // Connect new node to current node
-            // TODO: Allocate from inter-thread pool of nodes
-            newNode = new Chunk_t();
-            newNode->memBlock_[AllocationsPerChunk-1].next_ = currentHead;
+            // Set head to the start of a new chain and get an
+            //allocateable cell
+            allocateCell = chunkList_.allocateChain(head_);
 
-            // Set head to 1st block (0 is reserved for this allocation)
-            head_ = &newNode->memBlock_[1];
-
-            // Add new node to chain of nodes
-            currentHandle = handle_;
-            newNode->next_ = currentHandle;
-            handle_ = newNode;
-            return reinterpret_cast<void*>(&newNode->memBlock_[0]);
+            return reinterpret_cast<void*>(&allocateCell->val_);
         }
     };
+
+    template<std::size_t Size, std::size_t AllocationsPerChunk>
+    ChunkList<Size, AllocationsPerChunk>
+    Pool<Size, AllocationsPerChunk>::chunkList_;
 }
 
 #endif
