@@ -24,7 +24,7 @@ namespace lfpAlloc {
 
             // Out of cells to allocate
             if (!currentHead) {
-                return allocateFromNewNode();
+                currentHead = chunkList_.allocateChain();
             }
 
             next = currentHead->next_;
@@ -42,16 +42,6 @@ namespace lfpAlloc {
     private:
         static ChunkList<Size, AllocationsPerChunk> chunkList_;
         Cell_t* head_;
-
-        void* allocateFromNewNode() {
-            Cell_t* allocateCell;
-
-            // Set head to the start of a new chain and get an
-            //allocateable cell
-            allocateCell = chunkList_.allocateChain(head_);
-
-            return reinterpret_cast<void*>(&allocateCell->val_);
-        }
     };
 
     template<std::size_t Size, std::size_t AllocationsPerChunk>

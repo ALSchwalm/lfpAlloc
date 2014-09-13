@@ -45,22 +45,18 @@ namespace lfpAlloc {
         ChunkList() : handle_(nullptr),
                       head_(nullptr) {}
 
-        Cell_t* allocateChain(Cell_t*& previousHead) {
+        Cell_t* allocateChain() {
             CellNode* recentHead = head_.load();
             CellNode* currentNext = nullptr;
             do {
-                // If there are now available chains, allocate a new chunk
+                // If there are no available chains, allocate a new chunk
                 if (!recentHead) {
                     ChunkNode* currentHandle;
 
                     // Make a new node
                     auto newChunk = new ChunkNode();
 
-                    // Set the given head to the 1st cell. 0th is reserved for
-                    // this allocation
-                    previousHead = &newChunk->val_.memBlock_[1];
-
-                    // Add the node to the chain
+                    // Add the chunk to the chain
                     do {
                         currentHandle = handle_.load();
                         newChunk->next_ = currentHandle;
@@ -71,15 +67,9 @@ namespace lfpAlloc {
                 currentNext = recentHead->next_;
             } while (!head_.compare_exchange_weak(recentHead, currentNext));
 
-            previousHead = recentHead->val_;
+            auto retnValue = recentHead->val_;
             delete recentHead;
-
-            if (previousHead->next_) {
-                return previousHead->next_;
-            } else {
-                //TODO handle case where chain has only 1 item
-                return nullptr;
-            }
+            return retnValue;
         }
 
         void deallocateChain(Cell_t* newCell) {
