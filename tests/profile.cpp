@@ -20,10 +20,9 @@ void addRemoveTestBody(T& list) {
 }
 
 void lfpAddRemoveMultithreadTest() {
-    lfpAlloc::lfpAllocator<int> alloc;
     std::vector<std::thread> threads;
-    auto fun = [&alloc]{
-        std::list<int, decltype(alloc)> list(alloc);
+    auto fun = []{
+        std::list<int, lfpAlloc::lfpAllocator<int>> list;
         addRemoveTestBody(list);
     };
     for (int i=0; i < 16; ++i) {

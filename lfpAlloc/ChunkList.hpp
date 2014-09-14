@@ -42,8 +42,10 @@ namespace lfpAlloc {
         using ChunkNode = Node<Chunk_t>;
         using CellNode = Node<Cell_t*>;
     public:
-        ChunkList() : handle_(nullptr),
-                      head_(nullptr) {}
+        static ChunkList& getInstance() {
+            static ChunkList c;
+            return c;
+        }
 
         Cell_t* allocateChain() {
             CellNode* recentHead = head_.load();
@@ -88,6 +90,9 @@ namespace lfpAlloc {
         }
 
     private:
+        ChunkList() : handle_(nullptr),
+                      head_(nullptr) {}
+
         std::atomic<ChunkNode*> handle_;
         std::atomic<CellNode*> head_;
     };

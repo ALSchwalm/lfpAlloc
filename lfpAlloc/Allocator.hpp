@@ -6,7 +6,7 @@
 #include <thread>
 
 namespace lfpAlloc {
-    template<typename T, std::size_t MaxPoolPower=8>
+    template<typename T, std::size_t NumPools=8>
     class lfpAllocator {
     public:
         using value_type = T;
@@ -17,19 +17,19 @@ namespace lfpAlloc {
 
         template<typename U>
         struct rebind {
-            typedef lfpAllocator<U, MaxPoolPower> other;
+            typedef lfpAllocator<U, NumPools> other;
         };
 
         lfpAllocator(){}
 
         template<typename U>
-        lfpAllocator(lfpAllocator<U, MaxPoolPower>&&) noexcept{}
+        lfpAllocator(lfpAllocator<U, NumPools>&&) noexcept{}
 
         template<typename U>
-        lfpAllocator(const lfpAllocator<U, MaxPoolPower>&) noexcept{}
+        lfpAllocator(const lfpAllocator<U, NumPools>&) noexcept{}
 
         T* allocate(std::size_t count) {
-            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
+            if (sizeof(T)*count <= alignof(std::max_align_t)*NumPools-sizeof(void*)) {
                 return reinterpret_cast<T*>(dispatcher_.allocate(sizeof(T)*count));
             } else {
                 return new T[count];
@@ -37,7 +37,7 @@ namespace lfpAlloc {
         }
 
         void deallocate(T* p, std::size_t count) noexcept {
-            if (sizeof(T)*count <= alignof(std::max_align_t)*MaxPoolPower-sizeof(void*)) {
+            if (sizeof(T)*count <= alignof(std::max_align_t)*NumPools-sizeof(void*)) {
                 dispatcher_.deallocate(p, sizeof(T)*count);
             } else {
                 delete[] p;
@@ -63,7 +63,7 @@ namespace lfpAlloc {
         template<typename U, std::size_t M>
         friend class lfpAllocator;
     private:
-        static PoolDispatcher<MaxPoolPower> dispatcher_;
+        static PoolDispatcher<NumPools> dispatcher_;
     };
 
     template<typename T, std::size_t N>

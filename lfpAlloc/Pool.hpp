@@ -7,6 +7,7 @@
 namespace lfpAlloc {
     template<std::size_t Size, std::size_t AllocationsPerChunk>
     class Pool {
+        using ChunkList_t = ChunkList<Size, AllocationsPerChunk>;
     public:
         static constexpr std::size_t CellSize = Size-sizeof(void*);
         using Cell_t = Cell<CellSize>;
@@ -14,7 +15,7 @@ namespace lfpAlloc {
         Pool() : head_(nullptr){}
 
         ~Pool() {
-            chunkList_.deallocateChain(head_);
+            ChunkList_t::getInstance().deallocateChain(head_);
         }
 
         void* allocate(){
@@ -24,7 +25,7 @@ namespace lfpAlloc {
 
             // Out of cells to allocate
             if (!currentHead) {
-                currentHead = chunkList_.allocateChain();
+                currentHead = ChunkList_t::getInstance().allocateChain();
             }
 
             next = currentHead->next_;
@@ -40,13 +41,8 @@ namespace lfpAlloc {
         }
 
     private:
-        static ChunkList<Size, AllocationsPerChunk> chunkList_;
         Cell_t* head_;
     };
-
-    template<std::size_t Size, std::size_t AllocationsPerChunk>
-    ChunkList<Size, AllocationsPerChunk>
-    Pool<Size, AllocationsPerChunk>::chunkList_;
 }
 
 #endif
