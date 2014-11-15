@@ -1,4 +1,3 @@
-
 #include <lfpAlloc/Allocator.hpp>
 #include <gtest/gtest.h>
 #include <list>
@@ -37,7 +36,7 @@ TEST(AllocatorTest, Equality) {
 
 TEST(AllocatorTest, Allocate) {
     lfpAllocator<int> allocator;
-    for (std::size_t s=0; s<5e6; ++s) {
+    for (std::size_t s = 0; s < 5e6; ++s) {
         EXPECT_NE(allocator.allocate(1), nullptr);
     }
 }
@@ -45,7 +44,7 @@ TEST(AllocatorTest, Allocate) {
 TEST(AllocatorTest, Distinct) {
     lfpAllocator<int> allocator;
     std::set<int*> prevVals;
-    for (std::size_t s=0; s<5e4; ++s) {
+    for (std::size_t s = 0; s < 5e4; ++s) {
         auto val = allocator.allocate(1);
         EXPECT_NE(val, nullptr);
         EXPECT_EQ(prevVals.count(val), 0);
@@ -57,7 +56,7 @@ TEST(AllocatorTest, STLContainer) {
     std::list<int, lfpAllocator<int, 8>> l;
     std::vector<int, lfpAllocator<int, 8>> v;
 
-    for (std::size_t s=0; s<5e5; ++s) {
+    for (std::size_t s = 0; s < 5e5; ++s) {
         l.push_back(s);
         v.push_back(s);
     }
@@ -66,24 +65,24 @@ TEST(AllocatorTest, STLContainer) {
 
 TEST(AllocatorTest, Concurrent) {
     lfpAllocator<int, 8> allocator;
-    auto future1 = std::async(std::launch::async, [&]{
+    auto future1 = std::async(std::launch::async, [&] {
         std::vector<int, lfpAllocator<int, 8>> v(allocator);
-        for (std::size_t s=0; s<5e6; ++s) {
+        for (std::size_t s = 0; s < 5e6; ++s) {
             v.push_back(s);
         }
         return v;
     });
 
-    auto future2 = std::async(std::launch::async, [&]{
+    auto future2 = std::async(std::launch::async, [&] {
         std::vector<int, lfpAlloc::lfpAllocator<int, 8>> v(allocator);
-        for (std::size_t s=0; s<5e6; ++s) {
+        for (std::size_t s = 0; s < 5e6; ++s) {
             v.push_back(s);
         }
         return v;
     });
 
     std::vector<int> v;
-    for (std::size_t s=0; s<5e6; ++s) {
+    for (std::size_t s = 0; s < 5e6; ++s) {
         v.push_back(s);
     }
 
@@ -99,22 +98,22 @@ TEST(AllocatorTest, Alignment) {
     };
 
     lfpAllocator<int, 8> intAlloc;
-    for (std::size_t s=0; s < 5e4; ++s) {
+    for (std::size_t s = 0; s < 5e4; ++s) {
         EXPECT_TRUE(isAligned(intAlloc.allocate(1), alignof(int)));
     }
 
     lfpAllocator<short, 8> shortAlloc(intAlloc);
-    for (std::size_t s=0; s < 5e4; ++s) {
+    for (std::size_t s = 0; s < 5e4; ++s) {
         EXPECT_TRUE(isAligned(shortAlloc.allocate(1), alignof(short)));
     }
 
-    struct S{
+    struct S {
         char c;
         float f;
     };
 
     lfpAllocator<S, 8> sAlloc(intAlloc);
-    for (std::size_t s=0; s < 5e4; ++s) {
+    for (std::size_t s = 0; s < 5e4; ++s) {
         EXPECT_TRUE(isAligned(sAlloc.allocate(1), alignof(S)));
     }
 }
