@@ -2,11 +2,11 @@
 #define LF_POOL_ALLOCATOR
 
 #include <memory>
-#include <lfpAlloc/PoolDispatcher.hpp>
 #include <thread>
+#include <lfpAlloc/PoolDispatcher.hpp>
 
 namespace lfpAlloc {
-template <typename T, std::size_t NumPools = 8>
+template <typename T, std::size_t NumPools = 70>
 class lfpAllocator {
 public:
     using value_type = T;

@@ -29,7 +29,7 @@ struct Chunk {
 template <typename T>
 struct Node {
     Node() : val_(), next_(nullptr) {}
-    Node(const T& t) : val_(t), next_(nullptr) {}
+    Node(const T& val) : val_(val), next_(nullptr) {}
     T val_;
     std::atomic<Node<T>*> next_;
 };
