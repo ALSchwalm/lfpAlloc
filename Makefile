@@ -8,7 +8,7 @@ all: tests.out profile.out
 	@echo "Tests finished. Executing performace comparisions."
 	@./profile.out
 
-profile.out:
+profile.out: tests/profile.cpp
 	clang++ -I. -std=c++11 -O3 -Wall -Wextra tests/profile.cpp -pthread -o profile.out
 
 tests.out: $(TEST_OBJ)
