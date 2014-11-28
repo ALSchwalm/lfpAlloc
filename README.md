@@ -6,7 +6,7 @@ lfpAlloc is a lock-free pool based allocator written using C++11 concurrency fea
 Installation
 ============
 
-The library is headers-only, so it may be used by simply executing `git clone https://github.com/ALSchwalm/lfpAlloc.git` and adding the `lfpAlloc` folder to your projects include path.
+The library is headers-only, so it may be used by simply executing `git clone https://github.com/ALSchwalm/lfpAlloc.git` and adding the `lfpAlloc` folder to your project's include path.
 
 Tests may be compiled and executed by running `make` from the project root.
 
