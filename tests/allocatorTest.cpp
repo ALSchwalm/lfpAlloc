@@ -52,6 +52,17 @@ TEST(AllocatorTest, Distinct) {
     }
 }
 
+TEST(AllocatorTest, SmallTypes) {
+    std::list<uint8_t, lfpAllocator<uint8_t, 8>> l;
+    std::list<uint8_t> l2;
+
+    for (uint8_t s = 0; s < 255; ++s) {
+        l.push_back(s);
+        l2.push_back(s);
+    }
+    EXPECT_TRUE(std::equal(l.begin(), l.end(), l2.begin()));
+}
+
 TEST(AllocatorTest, STLContainer) {
     std::list<int, lfpAllocator<int, 8>> l;
     std::vector<int, lfpAllocator<int, 8>> v;

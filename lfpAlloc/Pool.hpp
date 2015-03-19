@@ -10,7 +10,8 @@ class Pool {
     using ChunkList_t = ChunkList<Size, AllocationsPerChunk>;
 
 public:
-    static constexpr std::size_t CellSize = Size - sizeof(void*);
+    static constexpr auto CellSize =
+        (Size > sizeof(void*)) ? Size - sizeof(void*) : 0;
     using Cell_t = Cell<CellSize>;
 
     Pool() : head_(nullptr) {}
