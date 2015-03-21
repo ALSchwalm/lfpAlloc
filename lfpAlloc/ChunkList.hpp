@@ -12,30 +12,21 @@ static_assert(ATOMIC_POINTER_LOCK_FREE == 2,
 
 namespace lfpAlloc {
 
+template <std::size_t Size>
+struct Cell {
+    uint8_t val_[Size];
+    Cell* next_ = this + 1;
+};
+
 // For small types (less than the size of void*), no additional
 // space is needed, so union val_ with next_ to avoid overhead.
-template <typename Cell>
-struct SmallCell {
-    SmallCell(Cell* next) : next_{next} {}
+template <>
+struct Cell<0> {
+    Cell() : next_{this + 1} {}
     union {
         uint8_t val_[sizeof(Cell*)];
         Cell* next_;
     };
-};
-
-template <typename Cell, std::size_t Size>
-struct NormalCell {
-    NormalCell(Cell* next) : next_{next} {};
-    uint8_t val_[Size];
-    Cell* next_;
-};
-
-template <std::size_t Size>
-struct Cell : std::conditional<Size == 0, SmallCell<Cell<Size>>,
-                               NormalCell<Cell<Size>, Size>>::type {
-    Cell()
-        : std::conditional<Size == 0, SmallCell<Cell<Size>>,
-                           NormalCell<Cell<Size>, Size>>::type{this + 1} {}
 };
 
 template <std::size_t Size, std::size_t AllocationsPerChunk>
